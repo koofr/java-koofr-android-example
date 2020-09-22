@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:gravity="center_horizontal"
     android:orientation="vertical"
-    tools:context="net.koofr.koofrexample.LoginActivity">
+    tools:context=".LoginActivity">
 
     <WebView
         android:id="@+id/login_web"

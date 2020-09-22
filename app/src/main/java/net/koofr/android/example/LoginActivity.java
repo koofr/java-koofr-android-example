@@ -1,21 +1,27 @@
-package net.koofr.koofrexample;
+package net.koofr.android.example;
 
 import android.content.Intent;
 import android.net.UrlQuerySanitizer;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 
 public class LoginActivity extends AppCompatActivity {
+    private static final String TAG = LoginActivity.class.getName();
+
     private WebView webView;
 
+    @SuppressWarnings("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,7 +38,7 @@ public class LoginActivity extends AppCompatActivity {
         webView.clearHistory();
         clearCookies();
 
-        final String redirectUrl = KoofrClient.getRedirectUrl();
+        final String redirectUrl = ((App)getApplication()).getKoofrClient().getRedirectUrl();
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -44,11 +50,11 @@ public class LoginActivity extends AppCompatActivity {
 
                     if (error != null && !error.isEmpty()) {
                         String errorReason = sanitizer.getValue("error_reason");
-                        // TODO handle error
+                        Log.w(TAG, "Failed to log in: " + errorReason);
                     } else {
                         String code = sanitizer.getValue("code");
 
-                        new InitializeApiTask().execute(code);
+                        new InitializeApiTask(LoginActivity.this).execute(code);
 
                         webView.loadDataWithBaseURL("", "Loading...", "text/html", "UTF-8", "");
                     }
@@ -60,7 +66,7 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl(KoofrClient.getAuthUrl());
+        webView.loadUrl(((App)getApplication()).getKoofrClient().getAuthUrl());
     }
 
     @SuppressWarnings("deprecation")
@@ -79,16 +85,20 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    private class InitializeApiTask extends AsyncTask<String, Void, Void> {
+    private static class InitializeApiTask extends AsyncTask<String, Void, Void> {
+        WeakReference<LoginActivity> activityRef;
+
+        public InitializeApiTask(LoginActivity activity) {
+            activityRef = new WeakReference<>(activity);
+        }
 
         @Override
         protected Void doInBackground(String... args) {
             String code = args[0];
-
             try {
-                KoofrClient.initialize(code);
+                ((App)activityRef.get().getApplication()).getKoofrClient().initialize(code);
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.w(TAG, "Failed to initialize Koofr API.", e);
             }
 
             return null;
@@ -96,8 +106,8 @@ public class LoginActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(Void self) {
-            Intent intent = new Intent(LoginActivity.this, UserInfoActivity.class);
-            startActivity(intent);
+            Intent intent = new Intent(activityRef.get(), UserInfoActivity.class);
+            activityRef.get().startActivity(intent);
         }
     }
 }
